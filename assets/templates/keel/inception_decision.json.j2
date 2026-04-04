@@ -1,0 +1,34 @@
+{# Initial decision record created at project inception. #}
+{
+  "id": "000-inception",
+  "type": "inception",
+  "date": "{{ inception_date }}",
+  "summary": "Project inception — {{ segments | length }} segments defined",
+  "details": {
+    "purpose": "{{ purpose }}",
+    "segments": [
+{% for seg in segments %}
+      {
+        "name": "{{ seg.name }}",
+        "path": "{{ seg.path }}",
+        "language": "{{ seg.language }}",
+        "constraints": [{% for c in seg.constraints %}"{{ c }}"{% if not loop.last %}, {% endif %}{% endfor %}],
+        "patterns": [{% for p in seg.patterns %}"{{ p.name }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+      }{% if not loop.last %},{% endif %}
+
+{% endfor %}
+    ],
+    "vocabulary_count": {{ vocabulary | length }},
+    "error_strategies": [{% for lang in error_strategies.keys() %}"{{ lang }}"{% if not loop.last %}, {% endif %}{% endfor %}],
+    "fault_isolation": {% if fault_isolation %}"declared"{% else %}"none"{% endif %}
+  },
+  "contract_changes": [
+    "Initial contract graph established",
+{% for seg in segments -%}
+    "{{ seg.name }}: [{{ seg.constraints | join(', ') }}] at {{ seg.path }}"{% if not loop.last %},{% endif %}
+
+{% endfor %}
+  ],
+  "approved_by": "human",
+  "supersedes": null
+}
