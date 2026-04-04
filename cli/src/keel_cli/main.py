@@ -13,7 +13,7 @@ from keel_cli.install import install_skill
 
 
 @click.group()
-@click.version_option()
+@click.version_option(package_name="keel-cli")
 @click.option("--project", "-p", default=".", help="Project root directory.")
 @click.pass_context
 def cli(ctx, project):

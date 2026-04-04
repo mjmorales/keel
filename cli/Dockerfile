@@ -11,6 +11,8 @@ COPY references/ /app/references/
 COPY assets/ /app/assets/
 COPY cli/ /app/cli/
 
+ARG SETUPTOOLS_SCM_PRETEND_VERSION=0.0.0
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${SETUPTOOLS_SCM_PRETEND_VERSION}
 RUN pip install --no-cache-dir ./cli
 
 WORKDIR /project

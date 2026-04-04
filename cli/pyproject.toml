@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "keel-cli"
-version = "1.0.0"
+dynamic = ["version"]
 description = "Architectural contract enforcement for LLM-driven codebases"
 readme = "../README.md"
 requires-python = ">=3.11"
@@ -15,6 +15,15 @@ dependencies = [
 
 [project.scripts]
 keel = "keel_cli.main:cli"
+
+[tool.hatch.version]
+source = "vcs"
+raw-options = { root = ".." }
+
+[tool.semantic_release]
+branch = "main"
+commit_message = "chore(release): {version}"
+tag_format = "v{version}"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/keel_cli"]
