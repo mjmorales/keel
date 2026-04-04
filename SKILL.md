@@ -393,8 +393,10 @@ All Keel artifacts live under `.keel/` in the target project. Keel owns this dir
 
 Generate everything in this order:
 
-**1. `.keel/` root:**
+**1. `.keel/` root, plugin manifest, and marketplace:**
 - `.keel/.gitignore` — keel-managed, controls what's tracked (see below)
+- `.keel/.claude-plugin/plugin.json` — from `assets/templates/plugin/plugin.json.j2` (plugin identity)
+- `.keel/.claude-plugin/marketplace.json` — from `assets/templates/marketplace/marketplace.json.j2` (local marketplace catalog)
 - `.keel/CLAUDE.md` — from `assets/templates/project/claude_md.j2`
 - `.keel/FRAMEWORK.md` — copy from `references/FRAMEWORK.md`
 
@@ -429,7 +431,7 @@ Generate everything in this order:
 - `.keel/ledger.json` — initial ledger index containing the inception record
 
 **7. Settings:**
-- `.claude/settings.local.json` — from `assets/templates/settings/settings.local.json.j2` (this stays in `.claude/` — it's Claude Code's config, not Keel's)
+- `.claude/settings.local.json` — from `assets/templates/settings/settings.local.json.j2` (permissions, plugin enablement, and marketplace registration)
 
 **8. Git hook:**
 - `.git/hooks/pre-commit` — from `assets/templates/hooks/pre-commit.j2` (make executable)
@@ -446,6 +448,7 @@ Generate everything in this order:
 Keel manages its own `.gitignore`. The split:
 
 **Tracked** (committed to the repo — these ARE the project's architectural contract):
+- `.claude-plugin/` — plugin manifest (makes `.keel/` discoverable by Claude Code)
 - `CLAUDE.md` — the authority
 - `FRAMEWORK.md` — the axioms
 - `scripts/` — enforcement tooling
@@ -472,15 +475,11 @@ map.json
 
 For each segment's file templates from Q9, generate a Jinja template file at `.keel/skills/keel-gen/templates/<segment>_<kind>.j2`. These are the actual skeleton templates that `/keel-new` will render when adding files to the project.
 
-### Wiring Skills and Commands into Claude Code
+### Wiring `.keel/` into Claude Code
 
-For Claude Code to discover skills and commands under `.keel/`, add include paths to `.claude/settings.local.json`:
-```json
-{
-  "skills": [".keel/skills"],
-  "commands": [".keel/commands"]
-}
-```
+`.keel/` is both a Claude Code local plugin and a local marketplace. The `settings.local.json` template registers the marketplace via `extraKnownMarketplaces` and enables the plugin via `enabledPlugins`. No `--plugin-dir` flag or manual install step is needed — Claude Code discovers and loads the keel plugin automatically on session start.
+
+Skills with a `name` frontmatter field get short names (e.g., `/keel-frame`); commands without `name` frontmatter get the full `keel:<name>` prefix (e.g., `/keel:keel-new`).
 
 ---
 
