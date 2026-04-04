@@ -1,0 +1,50 @@
+version: "3"
+
+vars:
+  SKILL_NAME: project-inception
+  INSTALL_DIR: "{{.HOME}}/.claude/skills/{{.SKILL_NAME}}"
+
+tasks:
+  install:
+    desc: Install the keel skill into ~/.claude/skills/
+    cmds:
+      - mkdir -p "{{.INSTALL_DIR}}"
+      - |
+        while IFS= read -r file; do
+          dir="{{.INSTALL_DIR}}/$(dirname "$file")"
+          mkdir -p "$dir"
+          cp "$file" "$dir/"
+        done < skill.manifest
+      - echo "Installed to {{.INSTALL_DIR}}"
+
+  uninstall:
+    desc: Remove the keel skill from ~/.claude/skills/
+    cmds:
+      - rm -rf "{{.INSTALL_DIR}}"
+      - echo "Removed {{.INSTALL_DIR}}"
+
+  link:
+    desc: Symlink the repo into ~/.claude/skills/ (dev mode)
+    cmds:
+      - ln -sfn "$(pwd)" "{{.INSTALL_DIR}}"
+      - echo "Linked $(pwd) → {{.INSTALL_DIR}}"
+
+  cli:install:
+    desc: Install the keel CLI via pipx
+    cmds:
+      - pipx install ./cli
+
+  cli:dev:
+    desc: Install the keel CLI in editable mode
+    cmds:
+      - pipx install --editable ./cli
+
+  docker:build:
+    desc: Build the keel Docker image locally
+    cmds:
+      - docker build -t ghcr.io/mjmorales/keel:local ./cli
+
+  docker:run:
+    desc: Run a keel CLI command via Docker
+    cmds:
+      - docker run --rm -v "$(pwd):/project" ghcr.io/mjmorales/keel:local {{.CLI_ARGS}}
