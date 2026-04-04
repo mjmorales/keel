@@ -13,7 +13,7 @@ The goal is not a clever codebase, but  a **boring** one instead. Prefering to b
 Install the CLI:
 
 ```bash
-pipx install keel-cli
+pipx install git+https://github.com/mjmorales/keel.git#subdirectory=cli
 ```
 
 Install the inception skill into Claude Code:
@@ -131,7 +131,7 @@ Four mechanisms maintain contracts after inception:
 Requires Python 3.11+.
 
 ```bash
-pipx install keel-cli
+pipx install git+https://github.com/mjmorales/keel.git#subdirectory=cli
 keel --version
 ```
 
@@ -223,7 +223,7 @@ Edit the generated `.keel/decisions/<id>.json` to add full context, then update 
 
 | Component | Requirement |
 |-----------|-------------|
-| `keel` CLI | Python 3.11+, `pipx` |
+| `keel` CLI | Python 3.11+ |
 | Docker image | Docker |
 | Inception skill | Claude Code |
 | Contract checking | Git |
