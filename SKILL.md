@@ -433,13 +433,16 @@ Generate everything in this order:
 **7. Settings:**
 - `.claude/settings.local.json` — from `assets/templates/settings/settings.local.json.j2` (permissions, plugin enablement, and marketplace registration)
 
-**8. Git hook:**
+**8. Plugin hooks:**
+- `.keel/hooks/hooks.json` — from `assets/templates/hooks/plugin/hooks.json.j2` (SessionStart hook loads keel-frame automatically)
+
+**9. Git hook:**
 - `.git/hooks/pre-commit` — from `assets/templates/hooks/pre-commit.j2` (make executable)
 
-**9. Source map:**
+**10. Source map:**
 - `.keel/map.json` — run `keel map --rebuild` after scaffold is created
 
-**10. Directory scaffold:**
+**11. Directory scaffold:**
 - Create empty directories for each declared segment path
 - Add `.gitkeep` in each so git tracks them
 

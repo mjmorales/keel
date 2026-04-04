@@ -14,6 +14,7 @@ assets/templates/commands/keel-new.md.j2
 assets/templates/commands/keel-status.md.j2
 assets/templates/commands/keel-tree.md.j2
 assets/templates/hooks/pre-commit.j2
+assets/templates/hooks/plugin/hooks.json.j2
 assets/templates/keel/inception_decision.json.j2
 assets/templates/plugin/plugin.json.j2
 assets/templates/marketplace/marketplace.json.j2
