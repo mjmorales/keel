@@ -10,7 +10,28 @@ permissions:
   packages: write
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: pip install ./cli
+
+      - name: Smoke test
+        run: |
+          keel --version
+          keel --help
+
   ghcr:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,6 +60,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
   pypi:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       id-token: write
