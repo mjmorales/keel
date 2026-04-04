@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.2.1 (2026-04-04)
+
+### Bug Fixes
+
+- Marketplace handling
+  ([`563ec4f`](https://github.com/mjmorales/keel/commit/563ec4f1ba45c56ea79656cbd22318b35baa9605))
+
+
 ## v1.2.0 (2026-04-04)
 
 ### Features
