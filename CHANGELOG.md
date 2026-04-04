@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.2.0 (2026-04-04)
+
+### Features
+
+- **inception**: Wire .keel/ as Claude Code local plugin via marketplace
+  ([`2dc8875`](https://github.com/mjmorales/keel/commit/2dc8875d5040860cdf882aba6c43f0ac25837d89))
+
+
 ## v1.1.0 (2026-04-04)
 
 ### Bug Fixes
