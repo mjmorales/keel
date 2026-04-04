@@ -11,18 +11,19 @@ import click
 
 SKILL_NAME = "project-inception"
 DEFAULT_DEST = Path.home() / ".claude" / "skills" / SKILL_NAME
+BUNDLED_DATA = Path(__file__).parent / "data"
 
 
 @click.command("install-skill")
-@click.argument("source", default=".", type=click.Path(exists=True))
+@click.argument("source", default=None, required=False, type=click.Path(exists=True))
 @click.option("--dest", default=str(DEFAULT_DEST), help="Installation directory.")
 @click.option("--link", is_flag=True, help="Symlink instead of copy (dev mode).")
 def install_skill(source, dest, link):
     """Install the keel inception skill into Claude Code.
 
-    SOURCE is the path to the keel repo (defaults to current directory).
+    SOURCE is the path to a keel repo. Defaults to bundled package data.
     """
-    source_path = Path(source).resolve()
+    source_path = Path(source).resolve() if source else BUNDLED_DATA
     dest_path = Path(dest)
     manifest_path = source_path / "skill.manifest"
 
@@ -31,6 +32,9 @@ def install_skill(source, dest, link):
         sys.exit(1)
 
     if link:
+        if source is None:
+            click.echo("keel: --link requires an explicit SOURCE path", err=True)
+            sys.exit(1)
         dest_path.parent.mkdir(parents=True, exist_ok=True)
         if dest_path.is_symlink():
             dest_path.unlink()
