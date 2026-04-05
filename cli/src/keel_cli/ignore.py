@@ -49,9 +49,16 @@ def parse_keelignore(path: Path) -> list[IgnoreEntry]:
         if not line or line.startswith("#"):
             continue
 
-        if " -- " not in line:
+        if " -- " not in line and not line.endswith(" --"):
             print(
                 f"keel: .keelignore:{line_number}: missing reason (need '-- <reason>'), skipping",
+                file=sys.stderr,
+            )
+            continue
+
+        if line.endswith(" --") or " -- " not in line:
+            print(
+                f"keel: .keelignore:{line_number}: empty reason after '--', skipping",
                 file=sys.stderr,
             )
             continue
