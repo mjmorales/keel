@@ -20,11 +20,6 @@ keel = "keel_cli.main:cli"
 source = "vcs"
 raw-options = { root = ".." }
 
-[tool.semantic_release]
-branch = "main"
-commit_message = "chore(release): {version}"
-tag_format = "v{version}"
-
 [tool.hatch.build.targets.wheel]
 packages = ["src/keel_cli"]
 

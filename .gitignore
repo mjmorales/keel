@@ -3,3 +3,4 @@
 .claude-env
 CLAUDE.md
 __pycache__/
+.python-version
