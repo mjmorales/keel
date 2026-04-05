@@ -164,6 +164,7 @@ All commands accept `-p <path>` to target a different project directory.
 | `keel check` | Check all tracked files against contracts |
 | `keel check --staged` | Check staged files only (pre-commit hook) |
 | `keel audit` | Static drift analysis on recent changes |
+| `keel audit --show-ignored` | Include suppressed findings in output |
 | `keel map` | Display the current source map |
 | `keel map --rebuild` | Rebuild `map.json` from project state |
 | `keel map --json-output` | Raw JSON output |
@@ -194,6 +195,62 @@ All commands accept `-p <path>` to target a different project directory.
 | `switch-sprawl` | `switch`/`match` with more than 4 cases |
 | `naming-drift` | Identifier contains no frozen vocabulary terms |
 | `hot-file` | File changed 10+ times in 30 days |
+
+### Audit Suppressions
+
+Audit findings are soft signals — they don't block commits. When a finding is known and accepted, suppress it to keep the audit focused on new drift. Two suppression layers are available, both requiring a reason.
+
+#### `.keelignore` file
+
+Create `.keelignore` at your project root. Each line: `<rule-regex> <path-regex> -- <reason>`.
+
+```
+# Suppress all boolean-param findings in the legacy payments adapter
+boolean-param   ^payments/legacy_.*\.py$   -- legacy adapter, migrating in Q3
+
+# Generated code doesn't follow vocabulary
+naming-drift    ^generated/                -- codegen output, not hand-authored
+
+# Dispatchers are inherently branchy
+switch-sprawl   ^cli/.*dispatch.*          -- dispatcher pattern, by design
+```
+
+Lines starting with `#` are comments. Blank lines are ignored. Entries without `-- <reason>` are invalid and skipped with a warning.
+
+#### Inline comments
+
+Suppress a single finding at its source with `keel:ignore <rule> -- <reason>` in a comment on the same line or the line immediately above:
+
+```python
+def create_order(urgent: bool):  # keel:ignore boolean-param -- triaged, tracked in PROJ-442
+```
+
+```go
+// keel:ignore boolean-param -- legacy API contract, cannot change signature
+func Process(dryRun bool) {
+```
+
+Works with `#`, `//`, and `--` comment styles. Inline comments without a reason are ignored.
+
+#### `--show-ignored` flag
+
+By default, suppressed findings are hidden and a summary count is shown:
+
+```
+keel audit: 2 finding(s):
+  [naming-drift] src/app.py:15: 'FrobNozzle' has no vocabulary match
+  [hot-file] src/app.py: changed frequently — scrutinize for responsibility creep
+
+3 finding(s) suppressed.
+```
+
+Use `--show-ignored` to see what's being suppressed and why:
+
+```bash
+keel audit --show-ignored
+```
+
+Stale `.keelignore` entries (matching zero current findings) are always flagged as warnings.
 
 ### Decision Types (`keel decide`)
 
