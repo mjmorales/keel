@@ -8,9 +8,9 @@ from pathlib import Path
 
 import click
 
-from keel_cli.parser import parse, segment_for_file, resolve_claude_md
-from keel_cli.imports import file_language, extract_imports
+from keel_cli.imports import extract_imports, file_language
 from keel_cli.io_blocklist import is_io_import
+from keel_cli.parser import parse, resolve_claude_md, segment_for_file
 
 
 @click.command()
@@ -35,12 +35,17 @@ def check(ctx, staged):
     if staged:
         result = subprocess.run(
             ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
-            capture_output=True, text=True, cwd=project_root,
+            capture_output=True,
+            text=True,
+            cwd=project_root,
         )
         files = [f for f in result.stdout.strip().splitlines() if f]
     else:
         result = subprocess.run(
-            ["git", "ls-files"], capture_output=True, text=True, cwd=project_root,
+            ["git", "ls-files"],
+            capture_output=True,
+            text=True,
+            cwd=project_root,
         )
         files = [f for f in result.stdout.strip().splitlines() if f]
 
@@ -90,7 +95,7 @@ def check(ctx, staged):
         click.echo(f"\nkeel: {len(violations)} contract violation(s):\n")
         for v in violations:
             click.echo(v)
-        click.echo(f"\nFix violations or file an ADR (FRAMEWORK.md Section 6).\n")
+        click.echo("\nFix violations or file an ADR (FRAMEWORK.md Section 6).\n")
         sys.exit(1)
     else:
         click.echo("keel: No contract violations found.")

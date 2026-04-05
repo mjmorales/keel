@@ -11,6 +11,7 @@ from pathlib import Path
 @dataclass(frozen=True)
 class IgnoreEntry:
     """A single .keelignore entry."""
+
     rule_pattern: str
     path_pattern: str
     reason: str
@@ -20,6 +21,7 @@ class IgnoreEntry:
 @dataclass(frozen=True)
 class InlineSuppression:
     """An inline keel:ignore comment found in source code."""
+
     rule: str
     reason: str
     file_path: str
@@ -83,12 +85,14 @@ def parse_keelignore(path: Path) -> list[IgnoreEntry]:
         rule_pattern = parts[0]
         path_pattern = parts[1]
 
-        entries.append(IgnoreEntry(
-            rule_pattern=rule_pattern,
-            path_pattern=path_pattern,
-            reason=reason,
-            line_number=line_number,
-        ))
+        entries.append(
+            IgnoreEntry(
+                rule_pattern=rule_pattern,
+                path_pattern=path_pattern,
+                reason=reason,
+                line_number=line_number,
+            )
+        )
 
     return entries
 
@@ -110,12 +114,14 @@ def scan_inline_suppressions(file_path: str, content: str) -> list[InlineSuppres
 
         match = _INLINE_RE.search(comment)
         if match:
-            suppressions.append(InlineSuppression(
-                rule=match.group(1),
-                reason=match.group(2).strip(),
-                file_path=file_path,
-                line_number=line_number,
-            ))
+            suppressions.append(
+                InlineSuppression(
+                    rule=match.group(1),
+                    reason=match.group(2).strip(),
+                    file_path=file_path,
+                    line_number=line_number,
+                )
+            )
 
     return suppressions
 
@@ -157,9 +163,9 @@ def _extract_comment(line: str) -> str | None:
     for prefix in _COMMENT_PREFIXES:
         # Full-line comment.
         if stripped.startswith(prefix):
-            return stripped[len(prefix):]
+            return stripped[len(prefix) :]
         # Trailing comment: find the last occurrence outside of strings.
         idx = line.rfind(prefix)
         if idx > 0:
-            return line[idx + len(prefix):]
+            return line[idx + len(prefix) :]
     return None

@@ -10,8 +10,8 @@ from pathlib import Path
 
 import click
 
-from keel_cli.parser import parse, segment_for_file, resolve_keel_dir, resolve_claude_md
-from keel_cli.imports import file_language, extract_imports, LANG_BY_EXT
+from keel_cli.imports import LANG_BY_EXT, extract_imports, file_language
+from keel_cli.parser import parse, resolve_claude_md, resolve_keel_dir, segment_for_file
 
 
 @click.command("map")
@@ -28,7 +28,7 @@ def map_cmd(ctx, rebuild, json_out):
         source_map = _build_map(project)
         map_path.parent.mkdir(parents=True, exist_ok=True)
         map_path.write_text(json.dumps(source_map, indent=2) + "\n", encoding="utf-8")
-        click.echo(f"Source map written to .keel/map.json")
+        click.echo("Source map written to .keel/map.json")
     else:
         source_map = json.loads(map_path.read_text(encoding="utf-8"))
 
@@ -46,11 +46,13 @@ def map_cmd(ctx, rebuild, json_out):
 
     for name, seg in source_map.get("segments", {}).items():
         constraints = ", ".join(seg.get("constraints", []))
-        click.echo(f"  {name:<20} {seg['path']:<25} {seg['language']:<12} {constraints:<30} {seg['file_count']:>5} {seg['test_count']:>5}")
+        files = seg["file_count"]
+        tests = seg["test_count"]
+        click.echo(f"  {name:<20} {seg['path']:<25} {seg['language']:<12} {constraints:<30} {files:>5} {tests:>5}")
 
     edges = source_map.get("dependency_graph", {}).get("edges", [])
     if edges:
-        click.echo(f"\n  Dependencies:")
+        click.echo("\n  Dependencies:")
         for e in edges:
             click.echo(f"    {e['from']} → {e['to']} ({e['weight']} imports)")
 
@@ -62,11 +64,13 @@ def map_cmd(ctx, rebuild, json_out):
         if len(orphans) > 10:
             click.echo(f"    ... and {len(orphans) - 10} more")
 
-    click.echo(f"\n  Totals: {totals.get('segments', 0)} segments, "
-               f"{totals.get('source_files', 0)} source, "
-               f"{totals.get('test_files', 0)} tests, "
-               f"{totals.get('cross_segment_edges', 0)} edges, "
-               f"{totals.get('orphan_files', 0)} orphans\n")
+    click.echo(
+        f"\n  Totals: {totals.get('segments', 0)} segments, "
+        f"{totals.get('source_files', 0)} source, "
+        f"{totals.get('test_files', 0)} tests, "
+        f"{totals.get('cross_segment_edges', 0)} edges, "
+        f"{totals.get('orphan_files', 0)} orphans\n"
+    )
 
 
 def _build_map(project: str) -> dict:
@@ -93,7 +97,10 @@ def _build_map(project: str) -> dict:
         }
 
     result = subprocess.run(
-        ["git", "ls-files"], capture_output=True, text=True, cwd=project_root,
+        ["git", "ls-files"],
+        capture_output=True,
+        text=True,
+        cwd=project_root,
     )
 
     for file_path in result.stdout.strip().splitlines():

@@ -12,7 +12,11 @@ from keel_cli.parser import resolve_keel_dir
 
 
 @click.command()
-@click.option("--type", "dtype", help="Filter by type (friction, amendment, vocabulary, pattern, segment).")
+@click.option(
+    "--type",
+    "dtype",
+    help="Filter by type (friction, amendment, vocabulary, pattern, segment).",
+)
 @click.option("--since", help="Filter by date (YYYY-MM-DD).")
 @click.option("--detail", help="Show full details for a specific decision ID.")
 @click.pass_context
@@ -82,7 +86,7 @@ def _show_detail(keel_dir: Path, decision_id: str):
 
     details = decision.get("details", {})
     if details:
-        click.echo(f"\n  Details:")
+        click.echo("\n  Details:")
         for key, value in details.items():
             if isinstance(value, list):
                 click.echo(f"    {key}:")

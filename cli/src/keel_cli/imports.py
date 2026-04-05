@@ -31,7 +31,7 @@ def _extract_go(content: str) -> list[str]:
     imports = []
     for match in re.finditer(r'import\s+"([^"]+)"', content):
         imports.append(match.group(1))
-    for block in re.finditer(r'import\s*\((.*?)\)', content, re.DOTALL):
+    for block in re.finditer(r"import\s*\((.*?)\)", content, re.DOTALL):
         for line in block.group(1).splitlines():
             m = re.search(r'"([^"]+)"', line.strip())
             if m:
@@ -66,7 +66,7 @@ def _extract_rust(content: str) -> list[str]:
     imports = []
     for match in re.finditer(r"use\s+([\w:]+)", content):
         imports.append(match.group(1))
-    for match in re.finditer(r'extern\s+crate\s+(\w+)', content):
+    for match in re.finditer(r"extern\s+crate\s+(\w+)", content):
         imports.append(match.group(1))
     return imports
 

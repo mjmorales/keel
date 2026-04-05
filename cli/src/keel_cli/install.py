@@ -8,7 +8,6 @@ from pathlib import Path
 
 import click
 
-
 SKILL_NAME = "project-inception"
 DEFAULT_DEST = Path.home() / ".claude" / "skills" / SKILL_NAME
 BUNDLED_DATA = Path(__file__).parent / "data"

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import sys
-from pathlib import Path
 
 import click
 
@@ -86,13 +85,13 @@ def _render_subtree(name: str, segments: dict, edges: list[dict]):
     click.echo(f"  Files: {seg['file_count']} source, {seg['test_count']} tests")
 
     if outgoing:
-        click.echo(f"  Depends on:")
+        click.echo("  Depends on:")
         for dep in outgoing:
             weight = next((e["weight"] for e in edges if e["from"] == name and e["to"] == dep), 0)
             click.echo(f"    → {dep} ({weight} imports)")
 
     if incoming:
-        click.echo(f"  Depended on by:")
+        click.echo("  Depended on by:")
         for dep in incoming:
             weight = next((e["weight"] for e in edges if e["from"] == dep and e["to"] == name), 0)
             click.echo(f"    ← {dep} ({weight} imports)")
@@ -105,8 +104,8 @@ def _render_dot(source_map: dict, focus: str | None):
     edges = source_map.get("dependency_graph", {}).get("edges", [])
 
     click.echo("digraph keel {")
-    click.echo('  rankdir=TB;')
-    click.echo('  node [shape=box, style=rounded];')
+    click.echo("  rankdir=TB;")
+    click.echo("  node [shape=box, style=rounded];")
 
     for name, seg in segments.items():
         constraints = ", ".join(seg.get("constraints", []))

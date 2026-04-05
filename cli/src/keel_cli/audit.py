@@ -10,14 +10,15 @@ from pathlib import Path
 
 import click
 
-from keel_cli.parser import parse, segment_for_file, resolve_claude_md
+from keel_cli.ignore import is_suppressed, parse_keelignore, scan_inline_suppressions
 from keel_cli.imports import file_language
-from keel_cli.ignore import parse_keelignore, scan_inline_suppressions, is_suppressed
+from keel_cli.parser import parse, resolve_claude_md
 
 
 @dataclass
 class Finding:
     """A single audit finding with structured metadata."""
+
     rule: str
     file_path: str
     line: int | None
@@ -30,8 +31,12 @@ class Finding:
 
 
 @click.command()
-@click.option("--show-ignored", is_flag=True, default=False,
-              help="Show suppressed findings and their suppression source.")
+@click.option(
+    "--show-ignored",
+    is_flag=True,
+    default=False,
+    help="Show suppressed findings and their suppression source.",
+)
 @click.pass_context
 def audit(ctx, show_ignored):
     """Run static drift analysis on recent changes."""
@@ -52,10 +57,14 @@ def audit(ctx, show_ignored):
 
     # Get recently changed files
     files = set()
-    has_parent = subprocess.run(
-        ["git", "rev-parse", "--verify", "HEAD~1"],
-        capture_output=True, cwd=project_root,
-    ).returncode == 0
+    has_parent = (
+        subprocess.run(
+            ["git", "rev-parse", "--verify", "HEAD~1"],
+            capture_output=True,
+            cwd=project_root,
+        ).returncode
+        == 0
+    )
     diff_cmds = [["git", "diff", "--name-only"]]
     if has_parent:
         diff_cmds.insert(0, ["git", "diff", "--name-only", "HEAD~1..HEAD"])
@@ -70,7 +79,9 @@ def audit(ctx, show_ignored):
     # Hot files (changed >10 times in 30 days)
     result = subprocess.run(
         ["git", "log", "--name-only", "--pretty=format:", "--since=30 days ago"],
-        capture_output=True, text=True, cwd=project_root,
+        capture_output=True,
+        text=True,
+        cwd=project_root,
     )
     counts: dict[str, int] = {}
     for line in result.stdout.strip().splitlines():
@@ -106,50 +117,73 @@ def audit(ctx, show_ignored):
         if pattern:
             for i, line in enumerate(content.splitlines(), 1):
                 if re.search(pattern, line):
-                    findings.append(Finding(
-                        rule="boolean-param", file_path=file_path, line=i,
-                        message="bool parameter \u2014 consider Strategy",
-                    ))
+                    findings.append(
+                        Finding(
+                            rule="boolean-param",
+                            file_path=file_path,
+                            line=i,
+                            message="bool parameter \u2014 consider Strategy",
+                        )
+                    )
 
         # Switch sprawl (>4 cases)
         if lang == "go":
             for m in re.finditer(r"switch\s", content):
-                block = content[m.start():m.start() + 2000]
+                block = content[m.start() : m.start() + 2000]
                 if block.count("case ") > 4:
-                    line_num = content[:m.start()].count("\n") + 1
-                    findings.append(Finding(
-                        rule="switch-sprawl", file_path=file_path, line=line_num,
-                        message="switch with many cases \u2014 use Registry",
-                    ))
+                    line_num = content[: m.start()].count("\n") + 1
+                    findings.append(
+                        Finding(
+                            rule="switch-sprawl",
+                            file_path=file_path,
+                            line=line_num,
+                            message="switch with many cases \u2014 use Registry",
+                        )
+                    )
         elif lang in ("python", "rust"):
             for m in re.finditer(r"match\s+\w+", content):
-                block = content[m.start():m.start() + 2000]
+                block = content[m.start() : m.start() + 2000]
                 arms = len(re.findall(r"^\s*(?:case\s|.*=>)", block, re.MULTILINE))
                 if arms > 4:
-                    line_num = content[:m.start()].count("\n") + 1
-                    findings.append(Finding(
-                        rule="switch-sprawl", file_path=file_path, line=line_num,
-                        message=f"match with {arms}+ arms \u2014 use Strategy",
-                    ))
+                    line_num = content[: m.start()].count("\n") + 1
+                    findings.append(
+                        Finding(
+                            rule="switch-sprawl",
+                            file_path=file_path,
+                            line=line_num,
+                            message=f"match with {arms}+ arms \u2014 use Strategy",
+                        )
+                    )
 
         # Naming drift
         if vocabulary:
-            for m in re.finditer(r"(?:type|struct|class|interface|enum|func|fn|def|const|var)\s+([A-Z]\w+)", content):
+            for m in re.finditer(
+                r"(?:type|struct|class|interface|enum|func|fn|def|const|var)\s+([A-Z]\w+)",
+                content,
+            ):
                 name = m.group(1)
                 words = re.findall(r"[A-Z][a-z]+|[a-z]+", name)
                 if len(words) > 1 and not any(w.lower() in vocabulary for w in words):
-                    line_num = content[:m.start()].count("\n") + 1
-                    findings.append(Finding(
-                        rule="naming-drift", file_path=file_path, line=line_num,
-                        message=f"'{name}' has no vocabulary match",
-                    ))
+                    line_num = content[: m.start()].count("\n") + 1
+                    findings.append(
+                        Finding(
+                            rule="naming-drift",
+                            file_path=file_path,
+                            line=line_num,
+                            message=f"'{name}' has no vocabulary match",
+                        )
+                    )
 
         # Hot file
         if file_path in hot_files:
-            findings.append(Finding(
-                rule="hot-file", file_path=file_path, line=None,
-                message="changed frequently \u2014 scrutinize for responsibility creep",
-            ))
+            findings.append(
+                Finding(
+                    rule="hot-file",
+                    file_path=file_path,
+                    line=None,
+                    message="changed frequently \u2014 scrutinize for responsibility creep",
+                )
+            )
 
     # Partition findings into active and suppressed.
     active: list[Finding] = []
@@ -158,8 +192,11 @@ def audit(ctx, show_ignored):
 
     for finding in findings:
         is_sup, source = is_suppressed(
-            finding.rule, finding.file_path, finding.line,
-            keelignore_entries, all_inline_suppressions,
+            finding.rule,
+            finding.file_path,
+            finding.line,
+            keelignore_entries,
+            all_inline_suppressions,
         )
         if is_sup:
             suppressed.append((finding, source))
@@ -186,7 +223,9 @@ def audit(ctx, show_ignored):
     if stale_entries:
         click.echo(f"\nkeel audit: {len(stale_entries)} stale .keelignore entry(ies):")
         for entry in stale_entries:
-            click.echo(f"  .keelignore:{entry.line_number}: {entry.rule_pattern} {entry.path_pattern} -- matched no findings")
+            click.echo(
+                f"  .keelignore:{entry.line_number}: {entry.rule_pattern} {entry.path_pattern} -- matched no findings"
+            )
 
     if active:
         if suppressed:

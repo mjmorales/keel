@@ -68,15 +68,13 @@ def _parse_segments(text: str) -> tuple[Segment, ...]:
         path = match.group(2).strip()
         start = match.end()
         next_heading = re.search(r"^##[# ]", text[start:], re.MULTILINE)
-        block = text[start:start + next_heading.start()] if next_heading else text[start:]
+        block = text[start : start + next_heading.start()] if next_heading else text[start:]
 
         lang_match = re.search(r"\*\*Language\*\*:\s*(.+?)$", block, re.MULTILINE)
         language = lang_match.group(1).strip() if lang_match else ""
 
         cons_match = re.search(r"\*\*Constraints\*\*:\s*(.+?)$", block, re.MULTILINE)
-        constraints = tuple(
-            c.strip().strip("`") for c in cons_match.group(1).split(",")
-        ) if cons_match else ()
+        constraints = tuple(c.strip().strip("`") for c in cons_match.group(1).split(",")) if cons_match else ()
 
         segments.append(Segment(name=name, path=path, language=language, constraints=constraints))
     return tuple(segments)
@@ -94,9 +92,13 @@ def _parse_forbidden_imports(text: str) -> tuple[ForbiddenImport, ...]:
                 continue
             cells = [c.strip() for c in line.split("|")[1:-1]]
             if len(cells) >= 3:
-                results.append(ForbiddenImport(
-                    segment=cells[0], must_not_import=cells[1], reason=cells[2],
-                ))
+                results.append(
+                    ForbiddenImport(
+                        segment=cells[0],
+                        must_not_import=cells[1],
+                        reason=cells[2],
+                    )
+                )
         elif in_table and not line.startswith("|"):
             in_table = False
     return tuple(results)

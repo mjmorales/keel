@@ -7,9 +7,7 @@ import sys
 
 import click
 
-from keel_cli.parser import parse, resolve_keel_dir, resolve_claude_md
-from keel_cli.imports import file_language, extract_imports
-from keel_cli.io_blocklist import is_io_import
+from keel_cli.parser import parse, resolve_claude_md, resolve_keel_dir
 
 
 @click.command()
@@ -26,7 +24,7 @@ def status(ctx):
 
     contracts = parse(claude_md)
 
-    click.echo(f"\n  Keel Status")
+    click.echo("\n  Keel Status")
     click.echo(f"  {'─' * 50}")
 
     # Segments
@@ -47,30 +45,33 @@ def status(ctx):
         ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
         click.echo(f"  Decisions: {len(ledger)} recorded")
     else:
-        click.echo(f"  Decisions: no ledger found")
+        click.echo("  Decisions: no ledger found")
 
     # Source map freshness
     map_path = keel_dir / "map.json"
     if map_path.exists():
         source_map = json.loads(map_path.read_text(encoding="utf-8"))
         totals = source_map.get("totals", {})
-        click.echo(f"  Source map: {totals.get('source_files', '?')} files, "
-                    f"{totals.get('test_files', '?')} tests, "
-                    f"{totals.get('orphan_files', '?')} orphans "
-                    f"(as of {source_map.get('generated', '?')[:10]})")
+        click.echo(
+            f"  Source map: {totals.get('source_files', '?')} files, "
+            f"{totals.get('test_files', '?')} tests, "
+            f"{totals.get('orphan_files', '?')} orphans "
+            f"(as of {source_map.get('generated', '?')[:10]})"
+        )
     else:
-        click.echo(f"  Source map: not built (run `keel map --rebuild`)")
+        click.echo("  Source map: not built (run `keel map --rebuild`)")
 
     # Quick violation check (inline, no subprocess)
-    click.echo(f"\n  Running contract check...")
+    click.echo("\n  Running contract check...")
     from keel_cli.check import check
+
     try:
         ctx.invoke(check)
-        click.echo(f"  Contracts: CLEAN")
+        click.echo("  Contracts: CLEAN")
     except SystemExit as e:
         if e.code:
-            click.echo(f"  Contracts: VIOLATIONS FOUND (see output above)")
+            click.echo("  Contracts: VIOLATIONS FOUND (see output above)")
         else:
-            click.echo(f"  Contracts: CLEAN")
+            click.echo("  Contracts: CLEAN")
 
     click.echo()

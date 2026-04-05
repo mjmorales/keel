@@ -6,12 +6,10 @@ import json
 import re
 import sys
 from datetime import date
-from pathlib import Path
 
 import click
 
 from keel_cli.parser import resolve_keel_dir
-
 
 VALID_TYPES = ("friction", "amendment", "vocabulary", "pattern", "segment", "inception")
 
@@ -30,7 +28,10 @@ def decide(ctx, dtype, summary, supersedes):
     keel_dir = resolve_keel_dir(project)
 
     if dtype not in VALID_TYPES:
-        click.echo(f"Invalid type '{dtype}'. Must be one of: {', '.join(VALID_TYPES)}", err=True)
+        click.echo(
+            f"Invalid type '{dtype}'. Must be one of: {', '.join(VALID_TYPES)}",
+            err=True,
+        )
         sys.exit(1)
 
     ledger_path = keel_dir / "ledger.json"
@@ -74,4 +75,4 @@ def decide(ctx, dtype, summary, supersedes):
 
     click.echo(f"Recorded: {decision_id}")
     click.echo(f"Detail file: .keel/decisions/{decision_id}.json")
-    click.echo(f"Edit the detail file to add context (task, conflict, resolution, affected segments).")
+    click.echo("Edit the detail file to add context (task, conflict, resolution, affected segments).")

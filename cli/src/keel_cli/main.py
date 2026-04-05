@@ -2,14 +2,14 @@
 
 import click
 
-from keel_cli.check import check
 from keel_cli.audit import audit
-from keel_cli.map_cmd import map_cmd
-from keel_cli.tree import tree
-from keel_cli.status import status
-from keel_cli.decisions import decisions
+from keel_cli.check import check
 from keel_cli.decide import decide
+from keel_cli.decisions import decisions
 from keel_cli.install import install_skill
+from keel_cli.map_cmd import map_cmd
+from keel_cli.status import status
+from keel_cli.tree import tree
 
 
 @click.group()
