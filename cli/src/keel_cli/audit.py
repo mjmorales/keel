@@ -252,6 +252,7 @@ def audit(ctx, show_ignored):
         if suppressed:
             click.echo(f"\n{len(suppressed)} finding(s) suppressed.")
         click.echo("\nSoft findings. Review and address as appropriate.\n")
+        sys.exit(1)
     elif suppressed:
         click.echo(f"\nkeel audit: No active findings. {len(suppressed)} finding(s) suppressed.")
     else:
