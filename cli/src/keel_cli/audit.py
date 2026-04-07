@@ -181,6 +181,20 @@ def audit(ctx, show_ignored):
                         )
                     )
 
+        # GDScript file-name vocabulary check
+        if lang == "gdscript" and vocabulary:
+            stem = Path(file_path).stem
+            words = stem.split("_")
+            if not any(w.lower() in vocabulary for w in words):
+                findings.append(
+                    Finding(
+                        rule="naming-drift",
+                        file_path=file_path,
+                        line=None,
+                        message=f"file '{stem}' has no vocabulary match",
+                    )
+                )
+
         # Hot file
         if file_path in hot_files:
             findings.append(
