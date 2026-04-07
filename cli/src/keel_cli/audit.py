@@ -163,7 +163,13 @@ def audit(ctx, show_ignored):
             ):
                 name = m.group(1)
                 words = re.findall(r"[A-Z][a-z]+|[a-z]+", name)
-                if len(words) > 1 and not any(w.lower() in vocabulary for w in words):
+                if len(words) > 1:
+                    has_match = any(w.lower() in vocabulary for w in words)
+                elif len(words) == 1:
+                    has_match = words[0].lower() in vocabulary
+                else:
+                    has_match = True
+                if not has_match:
                     line_num = content[: m.start()].count("\n") + 1
                     findings.append(
                         Finding(
