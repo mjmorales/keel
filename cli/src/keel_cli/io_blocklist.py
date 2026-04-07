@@ -79,6 +79,12 @@ BLOCKLISTS: dict[str, frozenset[str]] = {
             "log",
         }
     ),
+    "gdscript": frozenset(
+        {
+            "res://addons/gut",
+            "res://addons/godot_http",
+        }
+    ),
 }
 
 

@@ -112,6 +112,7 @@ def audit(ctx, show_ignored):
             "python": r"def\s+\w+\(.*:\s*bool",
             "typescript": r"(?:function|\w+)\s*\(.*:\s*boolean",
             "rust": r"fn\s+\w+\(.*:\s*bool",
+            "gdscript": r"func\s+\w+\(.*:\s*bool",
         }
         pattern = bool_patterns.get(lang)
         if pattern:
@@ -140,7 +141,7 @@ def audit(ctx, show_ignored):
                             message="switch with many cases \u2014 use Registry",
                         )
                     )
-        elif lang in ("python", "rust"):
+        elif lang in ("python", "rust", "gdscript"):
             for m in re.finditer(r"match\s+\w+", content):
                 block = content[m.start() : m.start() + 2000]
                 arms = len(re.findall(r"^\s*(?:case\s|.*=>)", block, re.MULTILINE))
@@ -158,7 +159,7 @@ def audit(ctx, show_ignored):
         # Naming drift
         if vocabulary:
             for m in re.finditer(
-                r"(?:type|struct|class|interface|enum|func|fn|def|const|var)\s+([A-Z]\w+)",
+                r"(?:type|struct|class_name|class|interface|enum|func|fn|def|const|var)\s+([A-Z]\w+)",
                 content,
             ):
                 name = m.group(1)

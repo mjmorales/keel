@@ -13,6 +13,7 @@ LANG_BY_EXT: dict[str, str] = {
     ".js": "typescript",
     ".jsx": "typescript",
     ".rs": "rust",
+    ".gd": "gdscript",
 }
 
 
@@ -71,9 +72,17 @@ def _extract_rust(content: str) -> list[str]:
     return imports
 
 
+def _extract_gdscript(content: str) -> list[str]:
+    imports = []
+    for match in re.finditer(r"""(?:preload|load)\(\s*["'](res://[^"']+)["']\s*\)""", content):
+        imports.append(match.group(1))
+    return imports
+
+
 _EXTRACTORS = {
     "go": _extract_go,
     "python": _extract_python,
     "typescript": _extract_typescript,
     "rust": _extract_rust,
+    "gdscript": _extract_gdscript,
 }
