@@ -114,6 +114,24 @@ class TestScanInlineSuppressions:
         sups = scan_inline_suppressions("app.py", content)
         assert len(sups) == 0
 
+    def test_explicit_lang_token_used(self):
+        # With lang="go", only "//" is a comment; a "#" line is code, not a comment.
+        content = "x := 1 // keel:ignore boolean-param -- ok\n"
+        sups = scan_inline_suppressions("main.go", content, "go")
+        assert len(sups) == 1
+        assert sups[0].rule == "boolean-param"
+
+    def test_wrong_token_for_lang_ignored(self):
+        # In Python ("#"), a "--" sequence must not be read as a comment start.
+        content = "x = 1 -- keel:ignore boolean-param -- ok\n"
+        sups = scan_inline_suppressions("app.py", content, "python")
+        assert len(sups) == 0
+
+    def test_unknown_lang_skipped(self):
+        content = "# keel:ignore boolean-param -- tracked\n"
+        sups = scan_inline_suppressions("app.unknown", content, "cobol")
+        assert len(sups) == 0
+
 
 class TestIsSuppressed:
     def test_suppressed_by_keelignore(self):

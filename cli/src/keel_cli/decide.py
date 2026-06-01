@@ -9,6 +9,7 @@ from datetime import date
 
 import click
 
+from keel_cli.ledger import load_ledger, next_id
 from keel_cli.parser import resolve_keel_dir
 
 VALID_TYPES = ("friction", "amendment", "vocabulary", "pattern", "segment", "inception")
@@ -37,21 +38,20 @@ def decide(ctx, dtype, summary, supersedes):
     ledger_path = keel_dir / "ledger.json"
     decisions_dir = keel_dir / "decisions"
 
-    # Load or create ledger
-    if ledger_path.exists():
-        ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
-    else:
-        ledger = []
-
-    # Generate next ID
-    if not ledger:
-        next_num = 1
-    else:
-        nums = [int(e["id"].split("-")[0]) for e in ledger if e["id"][0].isdigit()]
-        next_num = max(nums) + 1 if nums else 1
+    ledger = load_ledger(keel_dir)
 
     slug = re.sub(r"[^a-z0-9-]", "", summary.lower().replace(" ", "-"))[:40]
-    decision_id = f"{next_num:03d}-{slug}"
+    decision_id = next_id(ledger, slug)
+
+    # Never clobber a hand-edited detail file: a reset id (e.g. ledger lost its
+    # numeric ids) must not overwrite an existing 001-*.json on disk.
+    decision_path = decisions_dir / f"{decision_id}.json"
+    if decision_path.exists():
+        click.echo(
+            f"keel: Decision file already exists: {decision_path}. Refusing to overwrite.",
+            err=True,
+        )
+        sys.exit(1)
 
     entry = {
         "id": decision_id,
@@ -69,7 +69,6 @@ def decide(ctx, dtype, summary, supersedes):
 
     # Write full decision file
     decisions_dir.mkdir(parents=True, exist_ok=True)
-    decision_path = decisions_dir / f"{decision_id}.json"
     full_record = {**entry, "details": {}}
     decision_path.write_text(json.dumps(full_record, indent=2) + "\n", encoding="utf-8")
 

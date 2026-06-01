@@ -81,8 +81,9 @@ BLOCKLISTS: dict[str, frozenset[str]] = {
     ),
     "gdscript": frozenset(
         {
-            "res://addons/gut",
-            "res://addons/godot_http",
+            # GDScript imports are normalized res:// paths (scheme stripped),
+            # so blocklist entries are project-relative paths too.
+            "addons/godot_http",
         }
     ),
 }

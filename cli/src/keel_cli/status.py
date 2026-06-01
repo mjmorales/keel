@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
-import sys
+import subprocess
+from pathlib import Path
 
 import click
 
-from keel_cli.parser import parse, resolve_claude_md, resolve_keel_dir
+from keel_cli.check import collect_violations
+from keel_cli.ledger import load_ledger
+from keel_cli.parser import require_contracts, resolve_keel_dir
 
 
 @click.command()
@@ -16,13 +19,7 @@ def status(ctx):
     """Show contract compliance overview."""
     project = ctx.obj["project"]
     keel_dir = resolve_keel_dir(project)
-    claude_md = resolve_claude_md(project)
-
-    if not claude_md.exists():
-        click.echo("keel: Not a keel-governed project (no .keel/CLAUDE.md).", err=True)
-        sys.exit(1)
-
-    contracts = parse(claude_md)
+    contracts = require_contracts(project)
 
     click.echo("\n  Keel Status")
     click.echo(f"  {'─' * 50}")
@@ -40,9 +37,8 @@ def status(ctx):
     click.echo(f"  Forbidden imports: {len(contracts.forbidden_imports)} rules")
 
     # Decision count
-    ledger_path = keel_dir / "ledger.json"
-    if ledger_path.exists():
-        ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    ledger = load_ledger(keel_dir)
+    if ledger:
         click.echo(f"  Decisions: {len(ledger)} recorded")
     else:
         click.echo("  Decisions: no ledger found")
@@ -61,17 +57,23 @@ def status(ctx):
     else:
         click.echo("  Source map: not built (run `keel map --rebuild`)")
 
-    # Quick violation check (inline, no subprocess)
-    click.echo("\n  Running contract check...")
-    from keel_cli.check import check
-
-    try:
-        ctx.invoke(check)
-        click.echo("  Contracts: CLEAN")
-    except SystemExit as e:
-        if e.code:
-            click.echo("  Contracts: VIOLATIONS FOUND (see output above)")
-        else:
-            click.echo("  Contracts: CLEAN")
+    # Quick violation check (inline summary only; full report is `keel check`).
+    project_root = Path(project).resolve()
+    files = _tracked_files(project_root)
+    violations = collect_violations(contracts, project_root, files)
+    if violations:
+        click.echo(f"\n  Contracts: {len(violations)} violation(s) (run `keel check`)")
+    else:
+        click.echo("\n  Contracts: CLEAN")
 
     click.echo()
+
+
+def _tracked_files(project_root: Path) -> list[str]:
+    result = subprocess.run(
+        ["git", "ls-files"],
+        capture_output=True,
+        text=True,
+        cwd=project_root,
+    )
+    return [f for f in result.stdout.strip().splitlines() if f]

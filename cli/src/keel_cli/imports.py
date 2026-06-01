@@ -1,9 +1,47 @@
-"""Language-specific import extraction."""
+"""Language-specific import extraction and boundary matching.
+
+Normalization contract
+-----------------------
+Every extractor emits import tokens that are *comparable against a segment's
+filesystem path* (``Segment.path``, e.g. ``cli/src`` or ``segments/foo``).
+Two conventions coexist in the emitted tokens:
+
+- Path-style, slash-separated (Go, TypeScript, GDScript). GDScript ``res://``
+  URIs are stripped to a project-relative path so ``preload("res://segments/foo/bar.gd")``
+  becomes ``segments/foo/bar.gd``.
+- Module-style, dot- or ``::``-separated (Python, Rust). Python tokens retain
+  the *full* dotted module (``pkg.sub.mod``) — they are NOT truncated to the
+  top-level package — so dotted segment paths can match.
+
+``import_targets`` is the single boundary predicate that reconciles both
+conventions: it treats ``.``, ``::`` and ``/`` as equivalent separators before
+comparing, so the same token stream feeds the cross-segment matcher, the
+forbidden-import matcher, and the I/O blocklist (`io_blocklist.is_io_import`).
+"""
 
 from __future__ import annotations
 
 import re
 from pathlib import Path
+
+_SEPARATORS = re.compile(r"::|[./]")
+
+
+def _normalize(token: str) -> str:
+    """Collapse module/path separators (``.``, ``::``, ``/``) to ``/``."""
+    return _SEPARATORS.sub("/", token).strip("/")
+
+
+def import_targets(prefix: str, imp: str) -> bool:
+    """Return True if import ``imp`` targets the module/path ``prefix``.
+
+    Boundary-aware: ``api`` matches ``api`` and ``api/client`` but NOT
+    ``apiclient``. Separator-agnostic: ``pkg.sub`` matches path ``pkg/sub``.
+    """
+    p = _normalize(prefix)
+    i = _normalize(imp)
+    return i == p or i.startswith(p + "/")
+
 
 LANG_BY_EXT: dict[str, str] = {
     ".go": "go",
@@ -46,11 +84,17 @@ def _extract_python(content: str) -> list[str]:
         stripped = line.strip()
         if stripped.startswith("import "):
             for mod in stripped.removeprefix("import ").split(","):
-                imports.append(mod.strip().split(" as ")[0].split(".")[0])
+                mod = mod.strip().split(" as ")[0]
+                if mod.startswith("."):  # relative import; not segment-comparable
+                    continue
+                imports.append(mod)
         elif stripped.startswith("from "):
             m = re.match(r"from\s+(\S+)\s+import", stripped)
             if m:
-                imports.append(m.group(1).split(".")[0])
+                module = m.group(1)
+                if module.startswith("."):  # relative import; not segment-comparable
+                    continue
+                imports.append(module)
     return imports
 
 
@@ -74,7 +118,8 @@ def _extract_rust(content: str) -> list[str]:
 
 def _extract_gdscript(content: str) -> list[str]:
     imports = []
-    for match in re.finditer(r"""(?:preload|load)\(\s*["'](res://[^"']+)["']\s*\)""", content):
+    for match in re.finditer(r"""(?:preload|load)\(\s*["']res://([^"']+)["']\s*\)""", content):
+        # Strip the res:// scheme so the remaining token is a project-relative path.
         imports.append(match.group(1))
     return imports
 

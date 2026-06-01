@@ -10,9 +10,19 @@ from pathlib import Path
 
 import click
 
+from keel_cli.files import iter_source_files
 from keel_cli.ignore import is_suppressed, parse_keelignore, scan_inline_suppressions
-from keel_cli.imports import file_language
-from keel_cli.parser import parse, resolve_claude_md
+from keel_cli.parser import require_contracts
+
+# Per-language regexes for detecting bool parameters (module constant, matches
+# the decide.VALID_TYPES convention). Hoisted out of the per-file loop.
+BOOL_PARAM_PATTERNS = {
+    "go": r"func\s+\w+\(.*\bbool\b",
+    "python": r"def\s+\w+\(.*:\s*bool",
+    "typescript": r"(?:function|\w+)\s*\(.*:\s*boolean",
+    "rust": r"fn\s+\w+\(.*:\s*bool",
+    "gdscript": r"func\s+\w+\(.*:\s*bool",
+}
 
 
 @dataclass
@@ -42,13 +52,7 @@ def audit(ctx, show_ignored):
     """Run static drift analysis on recent changes."""
     project = ctx.obj["project"]
     project_root = Path(project).resolve()
-    claude_md = resolve_claude_md(project)
-
-    if not claude_md.exists():
-        click.echo("keel: CLAUDE.md not found.", err=True)
-        sys.exit(1)
-
-    contracts = parse(claude_md)
+    contracts = require_contracts(project)
     vocabulary = {v.lower() for v in contracts.vocabulary}
 
     # Load .keelignore
@@ -92,29 +96,12 @@ def audit(ctx, show_ignored):
     findings: list[Finding] = []
     all_inline_suppressions = []
 
-    for file_path in sorted(files):
-        lang = file_language(file_path)
-        if not lang:
-            continue
-
-        full_path = project_root / file_path
-        if not full_path.exists():
-            continue
-
-        content = full_path.read_text(encoding="utf-8", errors="replace")
-
+    for file_path, lang, content in iter_source_files(project_root, files=sorted(files)):
         # Collect inline suppressions for this file.
-        all_inline_suppressions.extend(scan_inline_suppressions(file_path, content))
+        all_inline_suppressions.extend(scan_inline_suppressions(file_path, content, lang))
 
         # Boolean params
-        bool_patterns = {
-            "go": r"func\s+\w+\(.*\bbool\b",
-            "python": r"def\s+\w+\(.*:\s*bool",
-            "typescript": r"(?:function|\w+)\s*\(.*:\s*boolean",
-            "rust": r"fn\s+\w+\(.*:\s*bool",
-            "gdscript": r"func\s+\w+\(.*:\s*bool",
-        }
-        pattern = bool_patterns.get(lang)
+        pattern = BOOL_PARAM_PATTERNS.get(lang)
         if pattern:
             for i, line in enumerate(content.splitlines(), 1):
                 if re.search(pattern, line):
@@ -221,9 +208,13 @@ def audit(ctx, show_ignored):
         )
         if is_sup:
             suppressed.append((finding, source))
-            # Track which .keelignore entries matched.
+            # Track which .keelignore entries matched. Parse defensively: the
+            # source is a stringly-typed ".keelignore:<int>" produced by
+            # is_suppressed, so a malformed line is skipped rather than crashing.
             if source and source.startswith(".keelignore:"):
-                matched_keelignore_lines.add(int(source.split(":")[1]))
+                line_str = source.split(":", 1)[1]
+                if line_str.isdigit():
+                    matched_keelignore_lines.add(int(line_str))
         else:
             active.append(finding)
 
@@ -252,6 +243,8 @@ def audit(ctx, show_ignored):
         if suppressed:
             click.echo(f"\n{len(suppressed)} finding(s) suppressed.")
         click.echo("\nSoft findings. Review and address as appropriate.\n")
+        # Policy (commit 2469ec0): findings are advisory ("soft") but still exit
+        # non-zero so CI/pre-commit fails on unaddressed drift. Do not revert.
         sys.exit(1)
     elif suppressed:
         click.echo(f"\nkeel audit: No active findings. {len(suppressed)} finding(s) suppressed.")

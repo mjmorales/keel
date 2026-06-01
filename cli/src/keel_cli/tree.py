@@ -40,11 +40,13 @@ def tree(ctx, segment, dot):
 
 
 def _render_full_tree(project_name: str, segments: dict, edges: list[dict]):
+    # Pre-seeded for every segment, so edge endpoints (always segment names)
+    # index into existing lists — no setdefault needed.
     deps = {name: [] for name in segments}
     rdeps = {name: [] for name in segments}
     for e in edges:
-        deps.setdefault(e["from"], []).append(e["to"])
-        rdeps.setdefault(e["to"], []).append(e["from"])
+        deps[e["from"]].append(e["to"])
+        rdeps[e["to"]].append(e["from"])
 
     click.echo(f"\n  {project_name}")
 

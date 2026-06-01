@@ -28,8 +28,32 @@ class InlineSuppression:
     line_number: int
 
 
-# Comment prefixes that can contain keel:ignore directives.
-_COMMENT_PREFIXES = ("#", "//", "--")
+# The single-line comment token per language. Scanning only a language's real
+# token avoids misreading e.g. SQL's "--" inside a "//"-commented language.
+_COMMENT_TOKEN_BY_LANG = {
+    "python": "#",
+    "gdscript": "#",
+    "typescript": "//",
+    "go": "//",
+    "rust": "//",
+    "sql": "--",
+    "lua": "--",
+}
+
+# Fallback token lookup by file extension, used when the caller does not pass an
+# explicit language (keeps scan_inline_suppressions usable from path alone).
+_COMMENT_TOKEN_BY_EXT = {
+    ".py": "#",
+    ".gd": "#",
+    ".ts": "//",
+    ".tsx": "//",
+    ".js": "//",
+    ".jsx": "//",
+    ".go": "//",
+    ".rs": "//",
+    ".sql": "--",
+    ".lua": "--",
+}
 
 # Regex to extract keel:ignore directive from a comment.
 _INLINE_RE = re.compile(r"keel:ignore\s+(\S+)\s+--\s+(.+)")
@@ -58,7 +82,9 @@ def parse_keelignore(path: Path) -> list[IgnoreEntry]:
             )
             continue
 
-        if line.endswith(" --") or " -- " not in line:
+        # Guard 1 already rejected lines lacking any "--", so here a line ending
+        # in " --" is precisely the empty-reason case.
+        if line.endswith(" --"):
             print(
                 f"keel: .keelignore:{line_number}: empty reason after '--', skipping",
                 file=sys.stderr,
@@ -97,18 +123,25 @@ def parse_keelignore(path: Path) -> list[IgnoreEntry]:
     return entries
 
 
-def scan_inline_suppressions(file_path: str, content: str) -> list[InlineSuppression]:
+def scan_inline_suppressions(file_path: str, content: str, lang: str | None = None) -> list[InlineSuppression]:
     """Scan source file content for inline keel:ignore directives.
 
-    Detects directives in comment tokens (#, //, --) on any line.
+    Scans only the language's single-line comment token (e.g. '#' for Python,
+    '//' for Go/TS, '--' for SQL). ``lang`` is resolved against the known
+    language tokens; when omitted, the token is derived from the file extension.
+    Lines whose language/extension is unknown are skipped.
     Returns one InlineSuppression per valid directive found.
     Directives missing '-- <reason>' are silently skipped.
     """
+    token = _comment_token(file_path, lang)
+    if token is None:
+        return []
+
     suppressions: list[InlineSuppression] = []
 
     for line_number, line in enumerate(content.splitlines(), 1):
         # Find comment portion of the line.
-        comment = _extract_comment(line)
+        comment = _extract_comment(line, token)
         if comment is None:
             continue
 
@@ -157,15 +190,30 @@ def is_suppressed(
     return False, None
 
 
-def _extract_comment(line: str) -> str | None:
-    """Extract the comment portion of a line, if any."""
+def _comment_token(file_path: str, lang: str | None) -> str | None:
+    """Resolve the single-line comment token for a file.
+
+    Prefers an explicit ``lang``; falls back to the file extension. Returns None
+    for unknown languages so callers can skip files keel cannot comment-scan.
+    """
+    if lang is not None:
+        return _COMMENT_TOKEN_BY_LANG.get(lang)
+    return _COMMENT_TOKEN_BY_EXT.get(Path(file_path).suffix.lower())
+
+
+def _extract_comment(line: str, token: str) -> str | None:
+    """Extract the comment portion of a line for a given comment token, if any.
+
+    NOTE: not string-literal aware — a token inside a string/char literal is
+    treated as a comment start. Acceptable here because the only consumer
+    matches the narrow keel:ignore directive, which would not appear in strings.
+    """
     stripped = line.strip()
-    for prefix in _COMMENT_PREFIXES:
-        # Full-line comment.
-        if stripped.startswith(prefix):
-            return stripped[len(prefix) :]
-        # Trailing comment: find the last occurrence outside of strings.
-        idx = line.rfind(prefix)
-        if idx > 0:
-            return line[idx + len(prefix) :]
+    # Full-line comment.
+    if stripped.startswith(token):
+        return stripped[len(token) :]
+    # Trailing comment: take the last occurrence on the line.
+    idx = line.rfind(token)
+    if idx > 0:
+        return line[idx + len(token) :]
     return None

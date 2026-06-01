@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import click
 
+from keel_cli.ledger import require_ledger
 from keel_cli.parser import resolve_keel_dir
 
 
@@ -24,13 +24,7 @@ def decisions(ctx, dtype, since, detail):
     """View the architectural decision ledger."""
     project = ctx.obj["project"]
     keel_dir = resolve_keel_dir(project)
-    ledger_path = keel_dir / "ledger.json"
-
-    if not ledger_path.exists():
-        click.echo("keel: No decision ledger found.", err=True)
-        sys.exit(1)
-
-    ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    ledger = require_ledger(keel_dir)
 
     if detail:
         _show_detail(keel_dir, detail)
@@ -49,8 +43,8 @@ def decisions(ctx, dtype, since, detail):
     click.echo(f"\n  Decision Ledger ({len(entries)} entries):\n")
 
     for entry in reversed(entries):
-        click.echo(f"  [{entry['id']}] {entry['date']} ({entry['type']})")
-        click.echo(f"    {entry['summary']}")
+        click.echo(f"  [{entry.get('id', '?')}] {entry.get('date', '?')} ({entry.get('type', '?')})")
+        click.echo(f"    {entry.get('summary', '?')}")
         if entry.get("supersedes"):
             click.echo(f"    supersedes: {entry['supersedes']}")
         click.echo()
@@ -75,10 +69,10 @@ def _show_detail(keel_dir: Path, decision_id: str):
         return
 
     decision = json.loads(candidates[0].read_text(encoding="utf-8"))
-    click.echo(f"\n  Decision: {decision['id']}")
-    click.echo(f"  Type: {decision['type']}")
-    click.echo(f"  Date: {decision['date']}")
-    click.echo(f"  Summary: {decision['summary']}")
+    click.echo(f"\n  Decision: {decision.get('id', '?')}")
+    click.echo(f"  Type: {decision.get('type', '?')}")
+    click.echo(f"  Date: {decision.get('date', '?')}")
+    click.echo(f"  Summary: {decision.get('summary', '?')}")
     click.echo(f"  Approved by: {decision.get('approved_by', '?')}")
 
     if decision.get("supersedes"):

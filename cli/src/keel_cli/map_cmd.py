@@ -4,14 +4,15 @@ from __future__ import annotations
 
 import json
 import subprocess
-import sys
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
 import click
 
-from keel_cli.imports import LANG_BY_EXT, extract_imports, file_language
-from keel_cli.parser import parse, resolve_claude_md, resolve_keel_dir, segment_for_file
+from keel_cli.files import classify_kind
+from keel_cli.imports import LANG_BY_EXT, extract_imports, file_language, import_targets
+from keel_cli.parser import require_contracts, resolve_keel_dir, segment_for_file
 
 
 @click.command("map")
@@ -74,12 +75,7 @@ def map_cmd(ctx, rebuild, json_out):
 
 
 def _build_map(project: str) -> dict:
-    claude_md = resolve_claude_md(project)
-    if not claude_md.exists():
-        click.echo("keel: CLAUDE.md not found.", err=True)
-        sys.exit(1)
-
-    contracts = parse(claude_md)
+    contracts = require_contracts(project)
     project_root = Path(project).resolve()
 
     segments: dict[str, dict] = {}
@@ -119,8 +115,7 @@ def _build_map(project: str) -> dict:
         lang = file_language(file_path)
         content = full_path.read_text(encoding="utf-8", errors="replace")
         imports = extract_imports(content, lang) if lang else []
-        stem = Path(file_path).stem
-        kind = "test" if (stem.startswith("test_") or stem.endswith("_test") or stem.endswith(".test")) else "source"
+        kind = classify_kind(file_path)
 
         seg_data = segments.get(seg.name)
         if seg_data:
@@ -134,18 +129,13 @@ def _build_map(project: str) -> dict:
             for other in contracts.segments:
                 if other.name == seg.name:
                     continue
-                if imp.startswith(other.path):
+                if import_targets(other.path, imp):
                     edges.append({"from": seg.name, "to": other.name})
 
-    # Deduplicate edges
-    seen: set[tuple[str, str]] = set()
-    segment_edges = []
-    for e in edges:
-        key = (e["from"], e["to"])
-        if key not in seen:
-            seen.add(key)
-            weight = sum(1 for x in edges if x["from"] == key[0] and x["to"] == key[1])
-            segment_edges.append({"from": key[0], "to": key[1], "weight": weight})
+    # Deduplicate edges and count weight in one linear pass. Counter preserves
+    # first-insertion key order, matching the prior first-seen edge ordering.
+    counts = Counter((e["from"], e["to"]) for e in edges)
+    segment_edges = [{"from": src, "to": dst, "weight": weight} for (src, dst), weight in counts.items()]
 
     return {
         "version": 1,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 import click
@@ -38,6 +39,9 @@ def install_skill(source, dest, link):
         if dest_path.is_symlink():
             dest_path.unlink()
         elif dest_path.exists():
+            if not click.confirm(f"keel: {dest_path} exists and will be removed. Continue?"):
+                click.echo("Aborted.")
+                return
             shutil.rmtree(dest_path)
         dest_path.symlink_to(source_path)
         click.echo(f"Linked {source_path} → {dest_path}")
@@ -45,15 +49,42 @@ def install_skill(source, dest, link):
 
     files = [f.strip() for f in manifest_path.read_text().splitlines() if f.strip()]
 
-    for file_rel in files:
-        src = source_path / file_rel
-        dst = dest_path / file_rel
+    # Confirm before overwriting a populated real destination.
+    if dest_path.exists() and not dest_path.is_symlink() and any(dest_path.iterdir()):
+        if not click.confirm(f"keel: {dest_path} is not empty and will be overwritten. Continue?"):
+            click.echo("Aborted.")
+            return
 
-        if not src.exists():
-            click.echo(f"  skip (missing): {file_rel}", err=True)
-            continue
+    # Stage every entry into a temp dir adjacent to dest, then move atomically
+    # onto dest only after all copies succeed — a mid-loop failure never leaves a
+    # half-installed skill. (Transactional install pattern.)
+    dest_path.parent.mkdir(parents=True, exist_ok=True)
+    staging = Path(tempfile.mkdtemp(prefix=".keel-install-", dir=dest_path.parent))
+    try:
+        copied = 0
+        for file_rel in files:
+            src = source_path / file_rel
+            staged = staging / file_rel
 
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src, dst)
+            if not src.exists():
+                click.echo(f"  skip (missing): {file_rel}", err=True)
+                continue
 
-    click.echo(f"Installed {len(files)} files to {dest_path}")
+            staged.parent.mkdir(parents=True, exist_ok=True)
+            if src.is_dir():
+                shutil.copytree(src, staged, dirs_exist_ok=True)
+            else:
+                shutil.copy2(src, staged)
+            copied += 1
+
+        # Replace dest with the fully-staged tree.
+        if dest_path.is_symlink() or dest_path.is_file():
+            dest_path.unlink()
+        elif dest_path.is_dir():
+            shutil.rmtree(dest_path)
+        shutil.move(str(staging), str(dest_path))
+    except BaseException:
+        shutil.rmtree(staging, ignore_errors=True)
+        raise
+
+    click.echo(f"Installed {copied} files to {dest_path}")

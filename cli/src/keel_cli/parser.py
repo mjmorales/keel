@@ -7,8 +7,11 @@ constraints, import rules, and vocabulary.
 from __future__ import annotations
 
 import re
+import sys
 from dataclasses import dataclass
 from pathlib import Path
+
+import click
 
 
 @dataclass(frozen=True)
@@ -41,6 +44,20 @@ def parse(claude_md_path: Path) -> ProjectContracts:
         forbidden_imports=_parse_forbidden_imports(text),
         vocabulary=_parse_vocabulary(text),
     )
+
+
+def require_contracts(project: str) -> ProjectContracts:
+    """Resolve and parse the project's CLAUDE.md, or exit 1 if it is missing.
+
+    Single precondition guard for every command that needs a keel-governed
+    project. Emits one canonical message to stderr and exits, so callers never
+    reimplement the "is this a keel project?" check.
+    """
+    claude_md = resolve_claude_md(project)
+    if not claude_md.exists():
+        click.echo("keel: Not a keel-governed project (no .keel/CLAUDE.md).", err=True)
+        sys.exit(1)
+    return parse(claude_md)
 
 
 def segment_for_file(contracts: ProjectContracts, file_path: str) -> Segment | None:
@@ -80,6 +97,10 @@ def _parse_segments(text: str) -> tuple[Segment, ...]:
     return tuple(segments)
 
 
+# NOTE: _parse_forbidden_imports and _parse_vocabulary share a Markdown-table
+# scanner shape (detect header, skip the separator row, read cells until the
+# table ends). Only two instances exist — per the rule-of-three, they stay
+# duplicated rather than abstracted until a third table parser appears.
 def _parse_forbidden_imports(text: str) -> tuple[ForbiddenImport, ...]:
     results = []
     in_table = False
